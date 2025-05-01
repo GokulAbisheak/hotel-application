@@ -1,0 +1,75 @@
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pagination-button {
+  padding: 0.5rem 1rem;
+  background-color: #2c5282;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background-color: #2a4365;
+}
+
+.pagination-button:disabled {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: #4a5568;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.delete-button {
+  padding: 0.5rem;
+  background-color: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-left: 0.5rem;
+}
+
+.delete-button:hover {
+  background-color: #c53030;
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .pagination {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .status-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .delete-button {
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+} 

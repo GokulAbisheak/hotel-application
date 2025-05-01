@@ -4,6 +4,7 @@ import './Layout.css';
 
 const Layout = () => {
   const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user'));
   const location = useLocation();
 
   //check if the current path is active
@@ -33,11 +34,29 @@ const Layout = () => {
           {token ? (
             <>
               <Link 
-                to="/bookings" 
-                className={`nav-link ${isActive('/bookings') ? 'active' : ''}`}
+                to="/my-bookings" 
+                className={`nav-link ${isActive('/my-bookings') ? 'active' : ''}`}
               >
                 My Bookings
               </Link>
+              {
+                user.checkedIn && (
+                  <>
+                  <Link 
+                    to="/order-food" 
+                    className={`nav-link ${isActive('/order-food') ? 'active' : ''}`}
+                  >
+                    Order Food
+                  </Link>
+                  <Link 
+                  to="/my-orders" 
+                  className={`nav-link ${isActive('/my-orders') ? 'active' : ''}`}
+                >
+                  My Orders
+                </Link>
+                </>
+                )
+              }
               <span
                 onClick={handleLogout}
                 className="nav-link logout"

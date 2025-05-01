@@ -1,8 +1,15 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+
 .auth-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  min-height: calc(100vh - 64px);
   /* Set the image as background */
   background: url('/abstract-digital-grid-black-background.jpg') no-repeat center center fixed;
   background-size: cover;
@@ -30,15 +37,19 @@
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
   font-weight: 500;
   color: #4a5568;
   font-size: 0.95rem;
+}
+
+.gap-20 {
+  margin-bottom: 20px;
 }
 
 .form-group input {

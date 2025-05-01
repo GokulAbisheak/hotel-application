@@ -2,6 +2,8 @@ import React from 'react';
 import { RouterProvider } from 'react-router-dom';
 import router from './routes';
 import './App.css'
+import FoodManagement from './pages/admin/FoodManagement';
+import FoodOrdering from './pages/FoodOrdering';
 
 function App() {
   return <RouterProvider router={router} />;

@@ -34,7 +34,6 @@ const MyBookings = () => {
     }
   };
 
-  // ✅ Updated Cancel Booking Function
   const handleCancelBooking = async (bookingId) => {
     const bookingToCancel = bookings.find((b) => b._id === bookingId);
     if (!bookingToCancel) {
@@ -101,11 +100,13 @@ const MyBookings = () => {
       return;
     }
 
-    const newTotalPrice = calculateTotalPrice(
-      newDates.checkIn,
-      newDates.checkOut,
-      editingBooking.room.price
-    );
+    const newTotalPrice = editingBooking.room?.price 
+      ? calculateTotalPrice(
+          newDates.checkIn,
+          newDates.checkOut,
+          editingBooking.room.price
+        )
+      : editingBooking.totalPrice;
 
     setEditingBooking({
       ...newDates,
@@ -141,15 +142,16 @@ const MyBookings = () => {
     const tableColumn = ["Field", "Details"];
 
     const tableRows = [
-      ["Room", booking.room.name || "-"],
-      ["Status", booking.status || "-"],
+      ["Room", booking.room?.name || "N/A"],
+      ["Room Number", booking.room?.roomNumber ? `#${booking.room.roomNumber}` : "N/A"],
+      ["Status", booking.status || "N/A"],
       ["Check-in", new Date(booking.checkIn).toLocaleDateString()],
       ["Check-out", new Date(booking.checkOut).toLocaleDateString()],
       ["Total Price", `LKR ${booking.totalPrice}`],
       ["Booked On", new Date(booking.createdAt).toLocaleDateString()],
-      ["Room Amenities", (booking.room.amenities && booking.room.amenities.length > 0)
+      ["Room Amenities", (booking.room?.amenities && booking.room.amenities.length > 0)
         ? booking.room.amenities.join(", ")
-        : "-"]
+        : "N/A"]
     ];
 
     autoTable(doc, {
@@ -178,7 +180,6 @@ const MyBookings = () => {
 
     const tableColumn = [
       "No.",
-      "Participant Name",
       "Room",
       "Status",
       "Check-in",
@@ -189,7 +190,6 @@ const MyBookings = () => {
 
     const tableRows = bookings.map((booking, index) => [
       index + 1,
-      booking.participantName || "-",
       booking.room?.name || "-",
       booking.status,
       new Date(booking.checkIn).toLocaleDateString(),
@@ -251,7 +251,7 @@ const MyBookings = () => {
           {bookings.map((booking) => (
             <div key={booking._id} className="booking-card">
               <div className="booking-header">
-                <h3>{booking.room.name}</h3>
+                <h3>{booking.room?.name || 'Room Unavailable'}</h3>
                 <span className={`status ${booking.status}`}>{booking.status}</span>
               </div>
 
@@ -294,6 +294,8 @@ const MyBookings = () => {
               ) : (
                 <>
                   <div className="booking-details">
+                    <p><strong>Room:</strong> {booking.room?.name || 'N/A'}</p>
+                    <p><strong>Room Number:</strong> {booking.room?.roomNumber ? `#${booking.room.roomNumber}` : 'N/A'}</p>
                     <p><strong>Check-in:</strong> {new Date(booking.checkIn).toLocaleDateString()}</p>
                     <p><strong>Check-out:</strong> {new Date(booking.checkOut).toLocaleDateString()}</p>
                     <p><strong>Total Price:</strong> LKR {booking.totalPrice}</p>

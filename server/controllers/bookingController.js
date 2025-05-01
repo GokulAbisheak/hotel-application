@@ -23,15 +23,19 @@ exports.createBooking = async (req, res) => {
       return res.status(404).json({ message: 'Room not found' });
     }
 
-    const days = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
-    const totalPrice = room.price * days;
+    let days = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+    if (days < 1) {
+      days = 1;
+    }
+    
+    const totalAmount = room.price * days;
 
     const booking = await Booking.create({
       user: req.user._id,
       room: roomId,
       checkIn,
       checkOut,
-      totalPrice
+      totalAmount
     });
 
     res.status(201).json(booking);
@@ -40,15 +44,22 @@ exports.createBooking = async (req, res) => {
   }
 };
 
-// Get all bookings for a user
+// Get user's bookings
 exports.getUserBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ user: req.user._id })
-      .populate('room')
-      .sort('-createdAt');
+      .populate({
+        path: 'user',
+        select: 'name email'
+      })
+      .populate({
+        path: 'room',
+        select: 'name price amenities roomNumber'
+      })
+      .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -155,14 +166,15 @@ exports.cancelBooking = async (req, res) => {
 // Delete booking
 exports.deleteBooking = async (req, res) => {
   try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to delete bookings' });
+    }
+
     const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    if (booking.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(401).json({ message: 'Not authorized' });
     }
 
     await Booking.findByIdAndDelete(req.params.id);
@@ -173,15 +185,39 @@ exports.deleteBooking = async (req, res) => {
   }
 };
 
-// Get all bookings (admin only)
+// Get all bookings (admin)
 exports.getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({})
-      .populate('room')
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to view all bookings' });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const totalBookings = await Booking.countDocuments();
+    const totalPages = Math.ceil(totalBookings / limit);
+
+    const bookings = await Booking.find()
       .populate('user', 'name email')
-      .sort('-createdAt');
-    res.json(bookings);
+      .populate('room')
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(limit);
+    
+    res.json({
+      bookings,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalBookings,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };

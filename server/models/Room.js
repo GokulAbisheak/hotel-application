@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const roomSchema = new mongoose.Schema({
+  roomNumber: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
   name: {
     type: String,
     required: true,
@@ -16,6 +22,10 @@ const roomSchema = new mongoose.Schema({
   amenities: {
     type: [String],
     default: [],
+  },
+  image: {
+    type: String,
+    default: null
   }
 }, { timestamps: true });
 

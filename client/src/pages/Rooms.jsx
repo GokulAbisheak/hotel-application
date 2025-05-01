@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import StripeProvider from '../components/StripeProvider';
+import PaymentForm from '../components/PaymentForm';
+import { createBookingPaymentIntent } from '../api/payments';
 import './Rooms.css';
 import { roomsAPI } from '../api/rooms';
+import { confirmPayment } from '../api/payments';
 
 const Rooms = () => {
   const [rooms, setRooms] = useState([]);
@@ -13,6 +17,9 @@ const Rooms = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dateError, setDateError] = useState('');
+  const [showPayment, setShowPayment] = useState(false);
+  const [clientSecret, setClientSecret] = useState(null);
+  const [bookingData, setBookingData] = useState(null);
   const navigate = useNavigate();
 
   //fetch rooms on load
@@ -86,28 +93,72 @@ const Rooms = () => {
     }
 
     try {
-      const bookingData = {
+      // Find the selected room to get its price
+      const selectedRoom = rooms.find(room => room._id === roomId);
+      if (!selectedRoom) {
+        throw new Error('Room not found');
+      }
+
+      // Calculate total amount based on number of nights
+      const checkInDate = new Date(bookingDates.checkIn);
+      const checkOutDate = new Date(bookingDates.checkOut);
+      const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+      const totalAmount = nights * selectedRoom.price;
+
+      // Create booking first
+      const bookingResponse = await roomsAPI.createBooking({
         roomId,
         checkIn: bookingDates.checkIn,
-        checkOut: bookingDates.checkOut
-      };
+        checkOut: bookingDates.checkOut,
+        totalAmount
+      });
 
-      console.log('Creating booking with data:', bookingData);
-      const response = await roomsAPI.createBooking(bookingData);
-      console.log('Booking response:', response);
-      alert('Booking successful!');
-      navigate('/bookings');
+      // Store booking data for later use
+      setBookingData(bookingResponse);
+      setSelectedRoom(selectedRoom);
+
+      // Create payment intent with the booking ID
+      const paymentData = await createBookingPaymentIntent({
+        bookingId: bookingResponse._id
+      });
+      
+      setClientSecret(paymentData.clientSecret);
+      setShowPayment(true);
     } catch (error) {
-      console.error('Error making booking:', error);
+      console.error('Error preparing booking:', error);
       if (error.response?.status === 401) {
         alert('Your session has expired. Please login again.');
         localStorage.removeItem('token');
         navigate('/login');
       } else {
-        const errorMessage = error.response?.data?.message || 'Booking failed. Please try again.';
+        const errorMessage = error.response?.data?.message || 'Failed to prepare booking. Please try again.';
         alert(errorMessage);
       }
     }
+  };
+
+  const handlePaymentSuccess = async (paymentIntent) => {
+    try {
+      // Confirm payment and update booking status
+      await confirmPayment({
+        paymentIntentId: paymentIntent.id,
+        type: 'booking',
+        id: bookingData._id
+      });
+      
+      alert('Booking successful!');
+      navigate('/my-bookings');
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to confirm payment. Please try again.';
+      alert(errorMessage);
+    }
+  };
+
+  const handlePaymentError = (error) => {
+    console.error('Payment error:', error);
+    alert('Payment failed. Please try again.');
+    setShowPayment(false);
   };
 
   if (isLoading) {
@@ -154,12 +205,41 @@ const Rooms = () => {
       </div>
       {dateError && <div className="date-error">{dateError}</div>}
 
+      {showPayment && clientSecret && (
+        <div className="payment-modal">
+          <div className="payment-modal-content">
+            <h2>Complete Your Booking</h2>
+            <p>Room: {selectedRoom.name}</p>
+            <p>Total Amount: LKR {bookingData.totalAmount}</p>
+            <StripeProvider>
+              <PaymentForm
+                amount={bookingData.totalAmount}
+                clientSecret={clientSecret}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+              />
+            </StripeProvider>
+            <button 
+              className="cancel-payment-button"
+              onClick={() => setShowPayment(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rooms-grid">
         {rooms.map((room) => (
           <div key={room._id} className="room-card">
-            <img src={room.images[0]} alt={room.name} className="room-image" />
+            <img 
+              src={room.image ? `http://localhost:4000${room.image}` : '/default-room.jpg'} 
+              alt={room.name} 
+              className="room-image" 
+            />
             <div className="room-details">
               <h3>{room.name}</h3>
+              <p className="room-number">Room #{room.roomNumber}</p>
               <p className="room-description">{room.description}</p>
               <div className="room-features">
                 <span>Capacity: {room.capacity} persons</span>
@@ -175,9 +255,9 @@ const Rooms = () => {
               <button
                 className="book-button"
                 onClick={() => handleBooking(room._id)}
-                disabled={!room.isAvailable || !bookingDates.checkIn || !bookingDates.checkOut || !!dateError}
+                disabled={!bookingDates.checkIn || !bookingDates.checkOut || !!dateError}
               >
-                {room.isAvailable ? 'Book Now' : 'Not Available'}
+                Book Now
               </button>
             </div>
           </div>

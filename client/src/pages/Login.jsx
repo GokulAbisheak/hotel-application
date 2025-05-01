@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Auth.css';
-import { authAPI } from '../api/auth';
-import Footer from '../components/Footer'; // ✅ Added Footer
+import authAPI from '../api/auth';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -22,7 +21,14 @@ const Login = () => {
     try {
       const response = await authAPI.login(formData);
       localStorage.setItem('token', response.token);
-      window.location.href = '/rooms';
+      localStorage.setItem('user', JSON.stringify(response.user));
+
+      if(response.user.role === 'admin') {
+        window.location.href = '/admin/rooms';
+      } else {
+        window.location.href = '/rooms';
+      }
+      // window.location.href = '/rooms';
     } catch (error) {
       console.error('Login failed:', error);
       setError(error.response?.data?.message || 'Login failed. Please try again.');
@@ -38,7 +44,7 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="auth-form">
             <h2>Welcome Back</h2>
             {error && <div className="error-message">{error}</div>}
-            <div className="form-group">
+            <div className="form-group gap-20">
               <label htmlFor="email">Email Address</label>
               <input
                 type="email"
@@ -74,7 +80,6 @@ const Login = () => {
           </form>
         </div>
       </div>
-      <Footer /> {/* ✅ Footer added here */}
     </div>
   );
 };
