@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
-import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import {
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements
+} from '@stripe/react-stripe-js';
 import { FaSpinner } from 'react-icons/fa';
-import '../styles/PaymentForm.css';
+import './PaymentForm.css';
 
 const PaymentForm = ({ amount, clientSecret, onSuccess, onError }) => {
   const stripe = useStripe();
@@ -9,24 +15,37 @@ const PaymentForm = ({ amount, clientSecret, onSuccess, onError }) => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
+  const [cardComplete, setCardComplete] = useState(false);
+  const [expiryComplete, setExpiryComplete] = useState(false);
+  const [cvcComplete, setCvcComplete] = useState(false);
+
+  const handleChange = (event, setComplete) => {
+    if (event.error) {
+      setError(event.error.message);
+    } else {
+      setError(null);
+    }
+    setComplete(event.complete);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    
-    if (!stripe || !elements || !clientSecret) {
-      return;
-    }
+
+    if (!stripe || !elements || !clientSecret) return;
 
     setProcessing(true);
     setError(null);
 
     try {
+      const cardNumberElement = elements.getElement(CardNumberElement);
+
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
         clientSecret,
         {
           payment_method: {
-            card: elements.getElement(CardElement),
+            card: cardNumberElement,
             billing_details: {
-              // You can add billing details here if needed
+              // Optional billing details
             },
           },
         }
@@ -46,28 +65,35 @@ const PaymentForm = ({ amount, clientSecret, onSuccess, onError }) => {
     }
   };
 
+  const isFormComplete = cardComplete && expiryComplete && cvcComplete;
+
   return (
     <form onSubmit={handleSubmit} className="payment-form">
       <div className="payment-amount">
         <h3>Total Amount: LKR {amount.toFixed(2)}</h3>
       </div>
 
-      <div className="card-element-container">
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#424770',
-                '::placeholder': {
-                  color: '#aab7c4',
-                },
-              },
-              invalid: {
-                color: '#9e2146',
-              },
-            },
-          }}
+      <div className="card-element-row">
+        <label>Card Number</label>
+        <CardNumberElement
+          className="card-input"
+          onChange={(e) => handleChange(e, setCardComplete)}
+        />
+      </div>
+
+      <div className="card-element-row">
+        <label>Expiry Date</label>
+        <CardExpiryElement
+          className="card-input"
+          onChange={(e) => handleChange(e, setExpiryComplete)}
+        />
+      </div>
+
+      <div className="card-element-row">
+        <label>CVC</label>
+        <CardCvcElement
+          className="card-input"
+          onChange={(e) => handleChange(e, setCvcComplete)}
         />
       </div>
 
@@ -76,7 +102,7 @@ const PaymentForm = ({ amount, clientSecret, onSuccess, onError }) => {
       <button
         type="submit"
         className="payment-button"
-        disabled={!stripe || processing}
+        disabled={!stripe || processing || !isFormComplete}
       >
         {processing ? (
           <FaSpinner className="spinner" />
@@ -88,4 +114,4 @@ const PaymentForm = ({ amount, clientSecret, onSuccess, onError }) => {
   );
 };
 
-export default PaymentForm; 
+export default PaymentForm;

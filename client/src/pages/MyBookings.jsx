@@ -7,14 +7,20 @@ import autoTable from 'jspdf-autotable';
 
 const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
+  const [filteredBookings, setFilteredBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
+  const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchBookings();
   }, []);
+
+  useEffect(() => {
+    applyDateFilter();
+  }, [dateFilter, bookings]);
 
   const fetchBookings = async () => {
     try {
@@ -34,6 +40,19 @@ const MyBookings = () => {
     }
   };
 
+  const applyDateFilter = () => {
+    let filtered = [...bookings];
+    if (dateFilter.from) {
+      const fromDate = new Date(dateFilter.from);
+      filtered = filtered.filter(b => new Date(b.checkIn) >= fromDate);
+    }
+    if (dateFilter.to) {
+      const toDate = new Date(dateFilter.to);
+      filtered = filtered.filter(b => new Date(b.checkOut) <= toDate);
+    }
+    setFilteredBookings(filtered);
+  };
+
   const handleCancelBooking = async (bookingId) => {
     const bookingToCancel = bookings.find((b) => b._id === bookingId);
     if (!bookingToCancel) {
@@ -41,15 +60,13 @@ const MyBookings = () => {
       return;
     }
 
-    if (!window.confirm('Are you sure you want to cancel this booking?')) {
-      return;
-    }
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
 
     try {
       await roomsAPI.updateBooking(bookingId, {
         checkIn: bookingToCancel.checkIn,
         checkOut: bookingToCancel.checkOut,
-        totalPrice: bookingToCancel.totalPrice,
+        totalAmount: bookingToCancel.totalAmount,
         status: 'cancelled',
       });
       alert('Booking cancelled successfully');
@@ -61,9 +78,7 @@ const MyBookings = () => {
   };
 
   const handleDeleteBooking = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
-      return;
-    }
+    if (!window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) return;
 
     try {
       await roomsAPI.deleteBooking(bookingId);
@@ -83,7 +98,7 @@ const MyBookings = () => {
     });
   };
 
-  const calculateTotalPrice = (checkIn, checkOut, roomPrice) => {
+  const calculatetotalAmount = (checkIn, checkOut, roomPrice) => {
     const days = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
     return days * roomPrice;
   };
@@ -100,17 +115,17 @@ const MyBookings = () => {
       return;
     }
 
-    const newTotalPrice = editingBooking.room?.price 
-      ? calculateTotalPrice(
+    const newtotalAmount = editingBooking.room?.price
+      ? calculatetotalAmount(
           newDates.checkIn,
           newDates.checkOut,
           editingBooking.room.price
         )
-      : editingBooking.totalPrice;
+      : editingBooking.totalAmount;
 
     setEditingBooking({
       ...newDates,
-      totalPrice: newTotalPrice
+      totalAmount: newtotalAmount
     });
   };
 
@@ -122,7 +137,7 @@ const MyBookings = () => {
       await roomsAPI.updateBooking(editingBooking._id, {
         checkIn: editingBooking.checkIn,
         checkOut: editingBooking.checkOut,
-        totalPrice: editingBooking.totalPrice
+        totalAmount: editingBooking.totalAmount
       });
       alert('Booking updated successfully');
       setEditingBooking(null);
@@ -135,11 +150,8 @@ const MyBookings = () => {
 
   const downloadBookingPDF = (booking) => {
     const doc = new jsPDF();
-
     doc.setFontSize(20);
     doc.text('Hotel Booking Data', 105, 20, { align: 'center' });
-
-    const tableColumn = ["Field", "Details"];
 
     const tableRows = [
       ["Room", booking.room?.name || "N/A"],
@@ -147,16 +159,14 @@ const MyBookings = () => {
       ["Status", booking.status || "N/A"],
       ["Check-in", new Date(booking.checkIn).toLocaleDateString()],
       ["Check-out", new Date(booking.checkOut).toLocaleDateString()],
-      ["Total Price", `LKR ${booking.totalPrice}`],
+      ["Total Price", `LKR ${booking.totalAmount}`],
       ["Booked On", new Date(booking.createdAt).toLocaleDateString()],
-      ["Room Amenities", (booking.room?.amenities && booking.room.amenities.length > 0)
-        ? booking.room.amenities.join(", ")
-        : "N/A"]
+      ["Room Amenities", booking.room?.amenities?.join(", ") || "N/A"]
     ];
 
     autoTable(doc, {
       startY: 30,
-      head: [tableColumn],
+      head: [["Field", "Details"]],
       body: tableRows,
       styles: { fontSize: 11, halign: 'center' },
       headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 12 },
@@ -168,15 +178,14 @@ const MyBookings = () => {
   };
 
   const downloadAllBookingsPDF = () => {
-    if (bookings.length === 0) {
-      alert('No bookings to download');
+    if (filteredBookings.length === 0) {
+      alert('No filtered bookings to download');
       return;
     }
 
     const doc = new jsPDF();
-
     doc.setFontSize(18);
-    doc.text('Hotel Booking Data', 14, 16);
+    doc.text('Filtered Hotel Bookings', 14, 16);
 
     const tableColumn = [
       "No.",
@@ -188,13 +197,13 @@ const MyBookings = () => {
       "Booked On"
     ];
 
-    const tableRows = bookings.map((booking, index) => [
+    const tableRows = filteredBookings.map((booking, index) => [
       index + 1,
       booking.room?.name || "-",
       booking.status,
       new Date(booking.checkIn).toLocaleDateString(),
       new Date(booking.checkOut).toLocaleDateString(),
-      `LKR ${booking.totalPrice}`,
+      `LKR ${booking.totalAmount}`,
       new Date(booking.createdAt).toLocaleDateString()
     ]);
 
@@ -207,48 +216,59 @@ const MyBookings = () => {
       alternateRowStyles: { fillColor: [240, 240, 240] },
     });
 
-    const pageHeight = doc.internal.pageSize.height;
     doc.setFontSize(10);
-    doc.text('Thank you for choosing our hotel!', 105, pageHeight - 10, { align: 'center' });
+    const pageHeight = doc.internal.pageSize.height;
+    doc.text('Thank you for using our service!', 105, pageHeight - 10, { align: 'center' });
 
-    doc.save('hotel-bookings-data.pdf');
+    doc.save('filtered-bookings.pdf');
   };
 
-  if (isLoading) {
-    return <div className="bookings-container"><h2>Loading bookings...</h2></div>;
-  }
-
-  if (error) {
-    return (
-      <div className="bookings-container">
-        <h2>Error</h2>
-        <p>{error}</p>
-        <button onClick={fetchBookings}>Retry</button>
-      </div>
-    );
-  }
+  if (isLoading) return <div className="bookings-container"><h2>Loading bookings...</h2></div>;
+  if (error) return (
+    <div className="bookings-container">
+      <h2>Error</h2>
+      <p>{error}</p>
+      <button onClick={fetchBookings}>Retry</button>
+    </div>
+  );
 
   return (
     <div className="bookings-container">
       <div className="bookings-header">
         <h1>My Bookings</h1>
+        <div className="flex flex-col sm:flex-row gap-4 mt-4">
+          <div className="flex items-center gap-2">
+            <label className="font-medium">From:</label>
+            <input
+              type="date"
+              className="border px-2 py-1 rounded"
+              value={dateFilter.from}
+              onChange={(e) => setDateFilter({ ...dateFilter, from: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="font-medium">To:</label>
+            <input
+              type="date"
+              className="border px-2 py-1 rounded"
+              value={dateFilter.to}
+              onChange={(e) => setDateFilter({ ...dateFilter, to: e.target.value })}
+            />
+          </div>
+          <button
+            onClick={downloadAllBookingsPDF}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+          >
+            Download Filtered Bookings
+          </button>
+        </div>
       </div>
 
-      {bookings.length > 0 && (
-        <button
-          className="download-all-button"
-          style={{ width: "fit-content" }}
-          onClick={downloadAllBookingsPDF}
-        >
-          Download All Bookings
-        </button>
-      )}
-
-      {bookings.length === 0 ? (
-        <p>You have no bookings yet.</p>
+      {filteredBookings.length === 0 ? (
+        <p className="mt-6 text-center text-gray-600">No bookings found for the selected date range.</p>
       ) : (
         <div className="bookings-grid">
-          {bookings.map((booking) => (
+          {filteredBookings.map((booking) => (
             <div key={booking._id} className="booking-card">
               <div className="booking-header">
                 <h3>{booking.room?.name || 'Room Unavailable'}</h3>
@@ -278,17 +298,11 @@ const MyBookings = () => {
                     />
                   </div>
                   <div className="booking-details">
-                    <p><strong>Updated Total Price:</strong> LKR {editingBooking.totalPrice}</p>
+                    <p><strong>Updated Total Price:</strong> LKR {editingBooking.totalAmount}</p>
                   </div>
                   <div className="edit-buttons">
                     <button type="submit" className="save-button">Save Changes</button>
-                    <button
-                      type="button"
-                      className="cancel-edit-button"
-                      onClick={() => setEditingBooking(null)}
-                    >
-                      Cancel
-                    </button>
+                    <button type="button" className="cancel-edit-button" onClick={() => setEditingBooking(null)}>Cancel</button>
                   </div>
                 </form>
               ) : (
@@ -298,28 +312,20 @@ const MyBookings = () => {
                     <p><strong>Room Number:</strong> {booking.room?.roomNumber ? `#${booking.room.roomNumber}` : 'N/A'}</p>
                     <p><strong>Check-in:</strong> {new Date(booking.checkIn).toLocaleDateString()}</p>
                     <p><strong>Check-out:</strong> {new Date(booking.checkOut).toLocaleDateString()}</p>
-                    <p><strong>Total Price:</strong> LKR {booking.totalPrice}</p>
+                    <p><strong>Total Price:</strong> LKR {booking.totalAmount}</p>
                     <p><strong>Booked on:</strong> {new Date(booking.createdAt).toLocaleDateString()}</p>
                   </div>
 
                   <div className="booking-actions">
-                    <button className="download-button" onClick={() => downloadBookingPDF(booking)}>
-                      Download PDF
-                    </button>
+                    <button className="download-button" onClick={() => downloadBookingPDF(booking)}>Download PDF</button>
                     {booking.status === 'confirmed' && (
                       <>
-                        <button className="edit-button" onClick={() => handleEditBooking(booking)}>
-                          Edit Dates
-                        </button>
-                        <button className="cancel-button" onClick={() => handleCancelBooking(booking._id)}>
-                          Cancel Booking
-                        </button>
+                        <button className="edit-button" onClick={() => handleEditBooking(booking)}>Edit Dates</button>
+                        <button className="cancel-button" onClick={() => handleCancelBooking(booking._id)}>Cancel Booking</button>
                       </>
                     )}
                     {booking.status === 'cancelled' && (
-                      <button className="delete-button" onClick={() => handleDeleteBooking(booking._id)}>
-                        Delete
-                      </button>
+                      <button className="delete-button" onClick={() => handleDeleteBooking(booking._id)}>Delete</button>
                     )}
                   </div>
                 </>

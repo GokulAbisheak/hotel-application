@@ -7,7 +7,7 @@ import { getUser } from '../api/auth';
 import { createOrderPaymentIntent, confirmPayment } from '../api/payments';
 import StripeProvider from '../components/StripeProvider';
 import PaymentForm from '../components/PaymentForm';
-import '../styles/FoodOrdering.css';
+import './FoodOrdering.css';
 
 const FoodOrdering = () => {
   const [foods, setFoods] = useState([]);

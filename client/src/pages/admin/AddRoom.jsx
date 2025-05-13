@@ -13,14 +13,16 @@ const AddRoom = () => {
     capacity: '',
     price: '',
     amenities: '',
-    image: null
+    image: null,
+    category: ''
   });
   const [formErrors, setFormErrors] = useState({
     name: '',
     capacity: '',
     price: '',
     amenities: '',
-    image: ''
+    image: '',
+    category: ''
   });
 
   const handleInputChange = (e) => {
@@ -127,6 +129,8 @@ const AddRoom = () => {
         roomData.append('image', formData.image);
       }
 
+      roomData.append('category', formData.category.trim());
+
       await roomsAPI.createRoom(roomData);
       alert('Room added successfully!');
       navigate('/admin/rooms');
@@ -177,6 +181,11 @@ const AddRoom = () => {
     // Image validation
     if (!formData.image) {
       errors.image = 'Room image is required';
+      isValid = false;
+    }
+
+    if (!formData.category) {
+      errors.category = 'Room category is required';
       isValid = false;
     }
 
@@ -248,6 +257,20 @@ const AddRoom = () => {
             rows="4"
           />
           {formErrors.amenities && <span className="error-message">{formErrors.amenities}</span>}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="name">Room Category</label>
+          <input
+            type="text"
+            id="category"
+            name="category"
+            value={formData.category}
+            onChange={handleInputChange}
+            className={formErrors.category ? 'input-error' : ''}
+            placeholder="Enter room category"
+          />
+          {formErrors.name && <span className="error-message">{formErrors.category}</span>}
         </div>
 
         <div className="form-group">

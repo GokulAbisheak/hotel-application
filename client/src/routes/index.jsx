@@ -14,6 +14,7 @@ import Layout from '../components/Layout';
 import FoodOrdering from '../pages/FoodOrdering';
 import MyOrders from '../pages/MyOrders';
 import OrdersManagement from '../pages/admin/OrdersManagement';
+import MakeReservation from '../pages/admin/MakeReservation';
 
 const router = createBrowserRouter([
   {
@@ -73,6 +74,10 @@ const router = createBrowserRouter([
       {
         path: 'users',
         element: <UsersManagement />
+      },
+      {
+        path: 'make-reservation',
+        element: <MakeReservation />
       },
       {
         path: 'foods',

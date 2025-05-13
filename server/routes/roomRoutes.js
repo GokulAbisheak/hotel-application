@@ -5,6 +5,7 @@ const upload = require('../middleware/upload');
 
 // All routes are public for now
 router.get('/', roomController.getAllRooms);
+router.get('/get-rooms/:checkIn/:checkOut', roomController.getAllRoomsForUser);
 router.get('/:id', roomController.getRoomById);
 router.post('/', upload.single('image'), roomController.createRoom);
 router.post('/bulk/add', upload.array('images', 10), roomController.bulkCreateRooms);

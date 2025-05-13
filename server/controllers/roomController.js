@@ -1,21 +1,22 @@
-const Room = require('../models/Room');
+const Booking = require("../models/Booking");
+const Room = require("../models/Room");
 
 // Function to generate a unique room number
 const generateRoomNumber = async () => {
   // Get the latest room to determine the next number
   const latestRoom = await Room.findOne().sort({ roomNumber: -1 });
-  
+
   if (!latestRoom) {
     // If no rooms exist, start with 101
-    return '101';
+    return "101";
   }
 
   // Extract the numeric part and increment
   const currentNumber = parseInt(latestRoom.roomNumber);
   const nextNumber = currentNumber + 1;
-  
+
   // Format as a 3-digit number
-  return nextNumber.toString().padStart(3, '0');
+  return nextNumber.toString().padStart(3, "0");
 };
 
 const roomController = {
@@ -29,12 +30,42 @@ const roomController = {
     }
   },
 
+  //user side
+  getAllRoomsForUser: async (req, res) => {
+  try {
+    const checkIn = new Date(req.params.checkIn);
+    const checkOut = new Date(req.params.checkOut);
+
+    // 1. Find all bookings that overlap with the requested date range
+    const overlappingBookings = await Booking.find({
+      $or: [
+        {
+          checkIn: { $lt: checkOut },
+          checkOut: { $gt: checkIn }
+        }
+      ]
+    });
+
+    // 2. Get all room IDs from those bookings
+    const bookedRoomIds = overlappingBookings.map(b => b.room.toString());
+
+    // 3. Find rooms that are NOT in the list of booked room IDs
+    const availableRooms = await Room.find({
+      _id: { $nin: bookedRoomIds }
+    });
+
+    res.json(availableRooms);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+},
+
   // Get room by ID
   getRoomById: async (req, res) => {
     try {
       const room = await Room.findById(req.params.id);
       if (!room) {
-        return res.status(404).json({ message: 'Room not found' });
+        return res.status(404).json({ message: "Room not found" });
       }
       res.json(room);
     } catch (error) {
@@ -47,25 +78,25 @@ const roomController = {
     try {
       // Generate room number
       const roomNumber = await generateRoomNumber();
-      
+
       // Parse amenities if they exist
       let amenities = [];
       if (req.body.amenities) {
         try {
           amenities = JSON.parse(req.body.amenities);
         } catch (e) {
-          amenities = req.body.amenities.split(',').map(item => item.trim());
+          amenities = req.body.amenities.split(",").map((item) => item.trim());
         }
       }
-      
+
       // Create room with generated number and image
       const room = new Room({
         ...req.body,
         roomNumber,
         amenities,
-        image: req.file ? `/uploads/rooms/${req.file.filename}` : null
+        image: req.file ? `/uploads/rooms/${req.file.filename}` : null,
       });
-      
+
       const savedRoom = await room.save();
       res.status(201).json(savedRoom);
     } catch (error) {
@@ -77,13 +108,15 @@ const roomController = {
   bulkCreateRooms: async (req, res) => {
     try {
       const { rooms } = req.body;
-      
+
       if (!Array.isArray(rooms) || rooms.length === 0) {
-        return res.status(400).json({ message: 'Please provide an array of rooms' });
+        return res
+          .status(400)
+          .json({ message: "Please provide an array of rooms" });
       }
 
       const createdRooms = [];
-      
+
       // Create rooms sequentially to ensure proper room number generation
       for (let i = 0; i < rooms.length; i++) {
         const roomData = JSON.parse(rooms[i]);
@@ -91,7 +124,10 @@ const roomController = {
         const room = new Room({
           ...roomData,
           roomNumber,
-          image: req.files && req.files[i] ? `/uploads/rooms/${req.files[i].filename}` : null
+          image:
+            req.files && req.files[i]
+              ? `/uploads/rooms/${req.files[i].filename}`
+              : null,
         });
         const savedRoom = await room.save();
         createdRooms.push(savedRoom);
@@ -99,7 +135,7 @@ const roomController = {
 
       res.status(201).json({
         message: `Successfully created ${createdRooms.length} rooms`,
-        rooms: createdRooms
+        rooms: createdRooms,
       });
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -112,7 +148,7 @@ const roomController = {
       // Parse amenities if they exist
       let amenities = [];
       if (req.body.amenities) {
-        amenities = req.body.amenities.split(',').map(item => item.trim());
+        amenities = req.body.amenities.split(",").map((item) => item.trim());
       }
 
       const updateData = {
@@ -120,17 +156,16 @@ const roomController = {
         capacity: parseInt(req.body.capacity),
         price: parseFloat(req.body.price),
         amenities: amenities,
-        ...(req.file && { image: `/uploads/rooms/${req.file.filename}` })
+        ...(req.file && { image: `/uploads/rooms/${req.file.filename}` }),
       };
 
-      const room = await Room.findByIdAndUpdate(
-        req.params.id,
-        updateData,
-        { new: true, runValidators: true }
-      );
-      
+      const room = await Room.findByIdAndUpdate(req.params.id, updateData, {
+        new: true,
+        runValidators: true,
+      });
+
       if (!room) {
-        return res.status(404).json({ message: 'Room not found' });
+        return res.status(404).json({ message: "Room not found" });
       }
       res.json(room);
     } catch (error) {
@@ -141,11 +176,25 @@ const roomController = {
   // Delete room
   deleteRoom: async (req, res) => {
     try {
-      const room = await Room.findByIdAndDelete(req.params.id);
+      const room = await Room.findById(req.params.id);
       if (!room) {
-        return res.status(404).json({ message: 'Room not found' });
+        return res.status(404).json({ message: "Room not found" });
       }
-      res.json({ message: 'Room deleted successfully' });
+
+      const booking = await Booking.find({
+        room: req.params.id,
+        checkOut: { $gt: new Date() },
+      });
+
+      if (booking && booking.length) {
+        return res
+          .status(409)
+          .json({ message: "Room cannot be deleted, it has future bookings." });
+      }
+
+      await Room.findByIdAndDelete(req.params.id);
+
+      res.json({ message: "Room deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
@@ -155,14 +204,14 @@ const roomController = {
   bulkDeleteRooms: async (req, res) => {
     try {
       const result = await Room.deleteMany({});
-      res.json({ 
+      res.json({
         message: `Successfully deleted ${result.deletedCount} rooms`,
-        deletedCount: result.deletedCount
+        deletedCount: result.deletedCount,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
-  }
+  },
 };
 
-module.exports = roomController; 
+module.exports = roomController;

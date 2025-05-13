@@ -1,42 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import StripeProvider from '../components/StripeProvider';
-import PaymentForm from '../components/PaymentForm';
-import { createBookingPaymentIntent } from '../api/payments';
-import './Rooms.css';
-import { roomsAPI } from '../api/rooms';
-import { confirmPayment } from '../api/payments';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import StripeProvider from "../components/StripeProvider";
+import PaymentForm from "../components/PaymentForm";
+import { createBookingPaymentIntent, confirmPayment } from "../api/payments";
+import { roomsAPI } from "../api/rooms";
+import "./Rooms.css";
 
 const Rooms = () => {
   const [rooms, setRooms] = useState([]);
+  const [filteredRooms, setFilteredRooms] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [bookingDates, setBookingDates] = useState({
-    checkIn: '',
-    checkOut: ''
+    checkIn: "",
+    checkOut: "",
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dateError, setDateError] = useState('');
+  const [dateError, setDateError] = useState("");
   const [showPayment, setShowPayment] = useState(false);
   const [clientSecret, setClientSecret] = useState(null);
   const [bookingData, setBookingData] = useState(null);
   const navigate = useNavigate();
 
-  //fetch rooms on load
   useEffect(() => {
     fetchRooms();
-  }, []);
+  }, [bookingDates]);
 
-  //fetch rooms
+  useEffect(() => {
+    if (selectedCategory === "All") {
+      setFilteredRooms(rooms);
+    } else {
+      setFilteredRooms(rooms.filter((room) => room.name === selectedCategory));
+    }
+  }, [selectedCategory, rooms]);
+
   const fetchRooms = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await roomsAPI.getAllRooms();
+
+      if (!(bookingDates?.checkIn && bookingDates?.checkOut)) {
+        setError("Please select check in and check out date");
+        return;
+      }
+
+      setError(null);
+      const data = await roomsAPI.getAllRoomsForUser(
+        bookingDates.checkIn,
+        bookingDates.checkOut
+      );
       setRooms(data);
+      setFilteredRooms(data);
+
+      // Extract unique categories
+      const uniqueCategories = [
+        "All",
+        ...new Set(data.map((room) => room.name).filter(Boolean)),
+      ];
+      setCategories(uniqueCategories);
     } catch (error) {
-      console.error('Error fetching rooms:', error);
-      setError('Failed to fetch rooms. Please try again.');
+      console.error("Error fetching rooms:", error);
+      setError("Failed to fetch rooms. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -49,89 +75,81 @@ const Rooms = () => {
     const selectedDate = new Date(value);
     selectedDate.setHours(0, 0, 0, 0);
 
-    if (name === 'checkIn') {
+    if (name === "checkIn") {
       if (selectedDate < today) {
-        setDateError('Check-in date cannot be in the past');
+        setDateError("Check-in date cannot be in the past");
         return;
       }
-      setDateError('');
+      setDateError("");
       setBookingDates({
         ...bookingDates,
         [name]: value,
-        checkOut: value > bookingDates.checkOut ? value : bookingDates.checkOut
+        checkOut: value > bookingDates.checkOut ? value : bookingDates.checkOut,
       });
     } else {
       if (selectedDate < new Date(bookingDates.checkIn)) {
-        setDateError('Check-out date must be after check-in date');
+        setDateError("Check-out date must be after check-in date");
         return;
       }
-      setDateError('');
+      setDateError("");
       setBookingDates({
         ...bookingDates,
-        [name]: value
+        [name]: value,
       });
     }
   };
 
-  //handle booking
   const handleBooking = async (roomId) => {
     if (!bookingDates.checkIn || !bookingDates.checkOut) {
-      setDateError('Please select both check-in and check-out dates');
+      setDateError("Please select both check-in and check-out dates");
       return;
     }
 
-    if (dateError) {
-      return;
-    }
+    if (dateError) return;
 
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (!token) {
-      alert('Please login to make a booking');
-      navigate('/login');
+      alert("Please login to make a booking");
+      navigate("/login");
       return;
     }
 
     try {
-      // Find the selected room to get its price
-      const selectedRoom = rooms.find(room => room._id === roomId);
-      if (!selectedRoom) {
-        throw new Error('Room not found');
-      }
+      const selectedRoom = rooms.find((room) => room._id === roomId);
+      if (!selectedRoom) throw new Error("Room not found");
 
-      // Calculate total amount based on number of nights
       const checkInDate = new Date(bookingDates.checkIn);
       const checkOutDate = new Date(bookingDates.checkOut);
-      const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+      const nights = Math.ceil(
+        (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)
+      );
       const totalAmount = nights * selectedRoom.price;
 
-      // Create booking first
       const bookingResponse = await roomsAPI.createBooking({
         roomId,
         checkIn: bookingDates.checkIn,
         checkOut: bookingDates.checkOut,
-        totalAmount
+        totalAmount,
       });
 
-      // Store booking data for later use
       setBookingData(bookingResponse);
       setSelectedRoom(selectedRoom);
 
-      // Create payment intent with the booking ID
       const paymentData = await createBookingPaymentIntent({
-        bookingId: bookingResponse._id
+        bookingId: bookingResponse._id,
       });
-      
+
       setClientSecret(paymentData.clientSecret);
       setShowPayment(true);
     } catch (error) {
-      console.error('Error preparing booking:', error);
+      console.error("Error preparing booking:", error);
       if (error.response?.status === 401) {
-        alert('Your session has expired. Please login again.');
-        localStorage.removeItem('token');
-        navigate('/login');
+        alert("Your session has expired. Please login again.");
+        localStorage.removeItem("token");
+        navigate("/login");
       } else {
-        const errorMessage = error.response?.data?.message || 'Failed to prepare booking. Please try again.';
+        const errorMessage =
+          error.response?.data?.message || "Failed to prepare booking.";
         alert(errorMessage);
       }
     }
@@ -139,70 +157,89 @@ const Rooms = () => {
 
   const handlePaymentSuccess = async (paymentIntent) => {
     try {
-      // Confirm payment and update booking status
       await confirmPayment({
         paymentIntentId: paymentIntent.id,
-        type: 'booking',
-        id: bookingData._id
+        type: "booking",
+        id: bookingData._id,
       });
-      
-      alert('Booking successful!');
-      navigate('/my-bookings');
+
+      alert("Booking successful!");
+      navigate("/my-bookings");
     } catch (error) {
-      console.error('Error confirming payment:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to confirm payment. Please try again.';
-      alert(errorMessage);
+      console.error("Error confirming payment:", error);
+      alert("Failed to confirm payment. Please try again.");
     }
   };
 
   const handlePaymentError = (error) => {
-    console.error('Payment error:', error);
-    alert('Payment failed. Please try again.');
+    console.error("Payment error:", error);
+    alert("Payment failed. Please try again.");
     setShowPayment(false);
   };
 
-  if (isLoading) {
-    return <div className="rooms-container"><h2>Loading rooms...</h2></div>;
-  }
-
-  if (error) {
+  if (isLoading)
     return (
       <div className="rooms-container">
-        <h2>Error</h2>
-        <p>{error}</p>
-        <button onClick={fetchRooms}>Retry</button>
+        <h2>Loading rooms...</h2>
       </div>
     );
-  }
 
   return (
     <div className="rooms-container">
       <h1>Available Rooms</h1>
-      
-      <div className="booking-dates">
-        <div className="date-input">
-          <label htmlFor="checkIn">Check-in Date:</label>
-          <input
-            type="date"
-            id="checkIn"
-            name="checkIn"
-            value={bookingDates.checkIn}
-            onChange={handleDateChange}
-            min={new Date().toISOString().split('T')[0]}
-          />
+
+      {error ? (
+        <div className="rooms-container">
+          <p className="">{error}</p>
         </div>
-        <div className="date-input">
-          <label htmlFor="checkOut">Check-out Date:</label>
-          <input
-            type="date"
-            id="checkOut"
-            name="checkOut"
-            value={bookingDates.checkOut}
-            onChange={handleDateChange}
-            min={bookingDates.checkIn || new Date().toISOString().split('T')[0]}
-          />
+      ) : (
+        <></>
+      )}
+
+      <div className="filters-section w-full">
+        <div className="booking-dates w-full">
+          <div className="date-input">
+            <label htmlFor="checkIn">Check-in Date:</label>
+            <input
+              type="date"
+              id="checkIn"
+              name="checkIn"
+              value={bookingDates.checkIn}
+              onChange={handleDateChange}
+              min={new Date().toISOString().split("T")[0]}
+            />
+          </div>
+          <div className="date-input">
+            <label htmlFor="checkOut">Check-out Date:</label>
+            <input
+              type="date"
+              id="checkOut"
+              name="checkOut"
+              value={bookingDates.checkOut}
+              onChange={handleDateChange}
+              min={
+                bookingDates.checkIn || new Date().toISOString().split("T")[0]
+              }
+            />
+          </div>
+
+          <div className="category-filter">
+            <label htmlFor="category">Filter by Category:</label>
+            <select
+              id="category"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              {categories.map((cat, index) => (
+                <option key={index} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
+
       {dateError && <div className="date-error">{dateError}</div>}
 
       {showPayment && clientSecret && (
@@ -219,7 +256,7 @@ const Rooms = () => {
                 onError={handlePaymentError}
               />
             </StripeProvider>
-            <button 
+            <button
               className="cancel-payment-button"
               onClick={() => setShowPayment(false)}
             >
@@ -230,12 +267,16 @@ const Rooms = () => {
       )}
 
       <div className="rooms-grid">
-        {rooms.map((room) => (
+        {filteredRooms.map((room) => (
           <div key={room._id} className="room-card">
-            <img 
-              src={room.image ? `http://localhost:4000${room.image}` : '/default-room.jpg'} 
-              alt={room.name} 
-              className="room-image" 
+            <img
+              src={
+                room.image
+                  ? `http://localhost:4000${room.image}`
+                  : "/default-room.jpg"
+              }
+              alt={room.name}
+              className="room-image"
             />
             <div className="room-details">
               <h3>{room.name}</h3>
@@ -255,7 +296,9 @@ const Rooms = () => {
               <button
                 className="book-button"
                 onClick={() => handleBooking(room._id)}
-                disabled={!bookingDates.checkIn || !bookingDates.checkOut || !!dateError}
+                disabled={
+                  !bookingDates.checkIn || !bookingDates.checkOut || !!dateError
+                }
               >
                 Book Now
               </button>
@@ -267,4 +310,4 @@ const Rooms = () => {
   );
 };
 
-export default Rooms; 
+export default Rooms;

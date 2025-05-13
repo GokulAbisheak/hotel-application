@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import './Layout.css';
+import { FaUser } from 'react-icons/fa';
 
 const Layout = () => {
   const token = localStorage.getItem('token');
@@ -40,7 +41,7 @@ const Layout = () => {
                 My Bookings
               </Link>
               {
-                user.checkedIn && (
+                user && user.checkedIn && (
                   <>
                   <Link 
                     to="/order-food" 
@@ -63,6 +64,10 @@ const Layout = () => {
               >
                 Logout
               </span>
+              <div className='flex gap-2 items-center'>
+                <div className='h-8 w-8 bg-gray-300 rounded-full text-white flex items-center justify-center'><FaUser /></div>
+                <div className='text-gray-600'>{user?.name}</div>
+              </div>
             </>
           ) : (
             <>

@@ -26,6 +26,9 @@ const roomSchema = new mongoose.Schema({
   image: {
     type: String,
     default: null
+  },
+  category: {
+    type: String
   }
 }, { timestamps: true });
 

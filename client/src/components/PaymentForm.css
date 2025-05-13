@@ -69,3 +69,19 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 } 
+
+.card-element-row {
+  margin-bottom: 20px;
+}
+
+.card-element-row label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.card-input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}

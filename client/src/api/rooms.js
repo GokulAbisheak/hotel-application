@@ -9,6 +9,11 @@ export const roomsAPI = {
     return response.data;
   },
 
+  getAllRoomsForUser: async (checkIn, checkOut) => {
+    const response = await api.get(`/rooms/get-rooms/${checkIn}/${checkOut}`);
+    return response.data;
+  },
+
   //get room by id
   getRoomById: async (roomId) => {
     const response = await api.get(`/rooms/${roomId}`);
@@ -70,6 +75,12 @@ export const roomsAPI = {
         Authorization: `Bearer ${token}`
       }
     });
+    return response.data;
+  },
+
+  //create manual booking
+  createManualBooking: async (bookingData) => {
+    const response = await api.post('/bookings/manual', bookingData);
     return response.data;
   },
 

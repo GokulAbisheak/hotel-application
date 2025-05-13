@@ -6,8 +6,11 @@ const {
   getUser,
   updateUser,
   deleteUser,
-  toggleCheckIn
+  toggleCheckIn,
+  searchUsers
 } = require('../controllers/userController');
+
+router.get('/search', searchUsers);
 
 // Protect all routes
 router.use(protect);

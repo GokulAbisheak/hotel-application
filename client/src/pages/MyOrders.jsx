@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaSpinner, FaUtensils, FaClock, FaCheck, FaTimes, FaDownload } from 'react-icons/fa';
 import { getUserOrders } from '../api/orders';
-import '../styles/MyOrders.css';
+import './MyOrders.css';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -191,7 +191,7 @@ const MyOrders = () => {
                 {order.items.map((item, index) => (
                   <div key={index} className="order-item">
                     <div className="item-details">
-                      <h4>{item.food.name}</h4>
+                      <h4>{item.food?.name}</h4>
                       <p>Quantity: {item.quantity}</p>
                     </div>
                     <p className="item-price">LKR {(item.price * item.quantity).toFixed(2)}</p>

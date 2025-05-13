@@ -8,7 +8,6 @@ exports.createBooking = async (req, res) => {
     
     const existingBooking = await Booking.findOne({
       room: roomId,
-      status: 'confirmed',
       $or: [
         { checkIn: { $lte: checkOut }, checkOut: { $gte: checkIn } }
       ]
@@ -32,6 +31,48 @@ exports.createBooking = async (req, res) => {
 
     const booking = await Booking.create({
       user: req.user._id,
+      room: roomId,
+      checkIn,
+      checkOut,
+      totalAmount
+    });
+
+    res.status(201).json(booking);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Create a new manual booking
+exports.createManualBooking = async (req, res) => {
+  try {
+    const { roomId, checkIn, checkOut, userId } = req.body;
+    
+    const existingBooking = await Booking.findOne({
+      room: roomId,
+      $or: [
+        { checkIn: { $lte: checkOut }, checkOut: { $gte: checkIn } }
+      ]
+    });
+
+    if (existingBooking) {
+      return res.status(400).json({ message: 'Room is not available for selected dates' });
+    }
+
+    const room = await Room.findById(roomId);
+    if (!room) {
+      return res.status(404).json({ message: 'Room not found' });
+    }
+
+    let days = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+    if (days < 1) {
+      days = 1;
+    }
+    
+    const totalAmount = room.price * days;
+
+    const booking = await Booking.create({
+      user: userId,
       room: roomId,
       checkIn,
       checkOut,
@@ -201,7 +242,7 @@ exports.getAllBookings = async (req, res) => {
     const totalPages = Math.ceil(totalBookings / limit);
 
     const bookings = await Booking.find()
-      .populate('user', 'name email')
+      .populate('user')
       .populate('room')
       .sort('-createdAt')
       .skip(skip)

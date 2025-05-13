@@ -170,3 +170,33 @@ exports.toggleCheckIn = async (req, res) => {
     });
   }
 }; 
+
+// @desc    Search users
+// @route   GET /api/users/search
+// @access  Public
+exports.searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    const users = await User.find({
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+        { nic: { $regex: q, $options: 'i' } },
+      ],
+      role: 'user'
+    });
+
+    // Remove duplicates by _id
+    const uniqueUsers = Array.from(
+      new Map(users.map(user => [user._id.toString(), user])).values()
+    );
+
+    res.status(200).json(uniqueUsers);
+  } catch (error) {
+    console.error("Error searching users:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};

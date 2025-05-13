@@ -93,7 +93,7 @@ const Register = () => {
 
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      navigate('/rooms');
+      navigate('/login');
     } catch (error) {
       console.error('Registration error details:', error);
       setError(error.message || 'Registration failed. Please try again.');

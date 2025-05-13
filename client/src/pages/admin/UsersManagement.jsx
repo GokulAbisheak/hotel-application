@@ -4,6 +4,7 @@ import { usersAPI } from '../../api/users';
 import authAPI from '../../api/auth';
 import './UsersManagement.css';
 import jsPDF from 'jspdf';
+import { useNavigate } from 'react-router-dom';
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -31,6 +32,7 @@ const UsersManagement = () => {
     hasNextPage: false,
     hasPrevPage: false
   });
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchUsers();
@@ -182,8 +184,8 @@ const UsersManagement = () => {
           phoneNumber: ''
         });
         setFormErrors({});
-        setShowModal(false);
       }
+      setShowModal(false);
     } catch (err) {
       if (err?.message) {
         if (err.message.includes('email')) {
@@ -287,6 +289,13 @@ const UsersManagement = () => {
             onClick={() => setShowModal(true)}
           >
             <FaPlus /> Register User
+          </button>
+          <button 
+            style={{ width: 'fit-content' }} 
+            className="register-button" 
+            onClick={() => navigate('/admin/make-reservation')}
+          >
+            <FaPlus /> Make Reservation
           </button>
           {users.length > 0 && (
             <button 

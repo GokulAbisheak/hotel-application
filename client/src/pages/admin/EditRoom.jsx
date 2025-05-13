@@ -14,14 +14,16 @@ const EditRoom = () => {
     capacity: '',
     price: '',
     amenities: '',
-    image: null
+    image: null,
+    category: ''
   });
   const [formErrors, setFormErrors] = useState({
     name: '',
     capacity: '',
     price: '',
     amenities: '',
-    image: ''
+    image: '',
+    category: ''
   });
   const [imagePreview, setImagePreview] = useState(null);
 
@@ -37,7 +39,8 @@ const EditRoom = () => {
         capacity: room.capacity,
         price: room.price,
         amenities: room.amenities.join(', '),
-        image: null
+        image: null,
+        category: room.category
       });
       setImagePreview(room.image ? `http://localhost:4000${room.image}` : null);
       setLoading(false);
@@ -132,6 +135,14 @@ const EditRoom = () => {
       isValid = false;
     }
 
+    if (!formData.category.trim()) {
+      errors.category = 'Room category is required';
+      isValid = false;
+    } else if (formData.category.trim().length < 3) {
+      errors.category = 'Room category must be at least 3 characters long';
+      isValid = false;
+    }
+
     setFormErrors(errors);
     return isValid;
   };
@@ -161,6 +172,8 @@ const EditRoom = () => {
       
       // Add processed amenities
       formDataToSend.append('amenities', processedAmenities.join(','));
+
+      formDataToSend.append('category', formData.category.trim());
 
       // Add image if it exists
       if (formData.image) {
@@ -252,6 +265,19 @@ const EditRoom = () => {
             className={`amenities-input ${formErrors.amenities ? 'input-error' : ''}`}
           />
           {formErrors.amenities && <span className="error-message">{formErrors.amenities}</span>}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="name">Room Category</label>
+          <input
+            type="text"
+            id="category"
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+            className={formErrors.category ? 'input-error' : ''}
+          />
+          {formErrors.category && <span className="error-message">{formErrors.category}</span>}
         </div>
 
         <div className="form-group">

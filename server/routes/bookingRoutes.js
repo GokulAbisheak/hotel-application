@@ -15,6 +15,9 @@ router.get('/mybookings', bookingController.getUserBookings);
 // Create booking
 router.post('/', bookingController.createBooking);
 
+// Create manual booking
+router.post('/manual', bookingController.createManualBooking);
+
 // Get single booking
 router.get('/:id', bookingController.getBooking);
 
