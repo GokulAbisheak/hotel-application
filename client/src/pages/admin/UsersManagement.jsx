@@ -187,6 +187,8 @@ const UsersManagement = () => {
       };
       const response = await authAPI.register(userData);
 
+      alert("User Registered Successfully");
+
       if (response?.data) {
         setUsers((prevUsers) => [...prevUsers, response.data]);
         setShowModal(false);

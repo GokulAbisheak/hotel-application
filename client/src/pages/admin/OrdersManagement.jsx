@@ -174,7 +174,7 @@ const OrdersManagement = () => {
                   <h3>Order #{order._id.slice(-6)}</h3>
                   <p className="order-date">Placed on {formatDate(order.createdAt)}</p>
                   <p className="customer-info">
-                    Customer: {order.user.name} | Room: {order.roomNumber}
+                    Customer: {order.user?.name} | Room: {order.roomNumber}
                   </p>
                 </div>
                 <div className="order-status">
